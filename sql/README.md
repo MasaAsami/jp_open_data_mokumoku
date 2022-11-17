@@ -98,7 +98,7 @@ WHERE
   prefecture_name = "東京都"
   AND city_name = "狛江市"
 ORDER BY
-  change_date DE DESC
+  change_date DESC
 ```
 
 ## GROUPごとに集計してみよう
@@ -152,7 +152,7 @@ WITH start_up_corporates AS (
   WHERE
     process = "新規"
     AND kind = "株式会社" 
-    AND EXTRACT(YEAR FROM change_date) > 2016
+    AND EXTRACT(YEAR FROM change_date) > 2015
   )
 
   SELECT
@@ -240,9 +240,14 @@ LEFT JOIN
   close_corporates c
 USING
   (corporate_number)
+WHERE
+  CASE
+    WHEN c.close_date IS NULL THEN DATE_DIFF(_today, s.start_date, MONTH)
+    ELSE　DATE_DIFF(c.close_date, s.start_date, MONTH)
+  END > 0
 ```
 
-## LIMITつければ安心ではない
+## 「LIMITつければ安心!」ではない
 - 課金はあくあでスキャン量に依存する。LIMITはスキャンが終わってから実行される
 - 本当のBIGDATAはパーティション（クラスター、index）がついてるので、かならずwhereでパーティションを指定してクエリを投げる（課金爆死する）
 
