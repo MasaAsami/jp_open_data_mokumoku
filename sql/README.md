@@ -247,6 +247,50 @@ WHERE
   END > 0
 ```
 
+## おまけでgbizInfoも
+- 例えば、補助金の多くもらってる企業をリスト化したい
+- (データが結構抜けてる気がしますが)
+
+```sql
+WITH base_table AS (
+  SELECT
+    corporate_number,
+    s.name,
+    s.date_of_approval,
+    EXTRACT(YEAR FROM s.date_of_approval) AS approval_year,
+    s.title AS subsidy_title,
+    s.amount AS subsidy_amount,
+    REGEXP_EXTRACT(b.location, '東京都|北海道|(?:京都|大阪)府|.{2,3}県') AS pref,
+    s.government_departments,
+    b.close_date,
+    b.close_cause,
+    b.founding_year,
+    b.date_of_establishment,
+    b.update_date
+  FROM
+    gbizinfo_preprocessed_by_bq_fun.subsidy s
+  LEFT JOIN
+    gbizinfo_preprocessed_by_bq_fun.basic b
+  USING(corporate_number)
+  WHERE
+    s.name LIKE '%株式会社%'
+    OR s.name LIKE '%有限会社%'
+)
+
+SELECT
+  corporate_number,
+  name,
+  pref,
+  COUNT(corporate_number) AS subsidty_cnt,
+  SUM(subsidy_amount) AS totla_subsidy_amount,
+  COUNTIF(government_departments LIKE '%経済産業省%') AS meti_cnt,
+  SUM(IF(government_departments LIKE '%経済産業省%', subsidy_amount,0)) AS meti_subsidy_amount,
+FROM
+  base_table
+GROUP BY 1, 2, 3
+ORDER BY 4 DESC
+```
+
 ## 「LIMITつければ安心!」ではない
 - 課金はあくあでスキャン量に依存する。LIMITはスキャンが終わってから実行される
 - 本当のBIGDATAはパーティション（クラスター、index）がついてるので、かならずwhereでパーティションを指定してクエリを投げる（課金爆死する）
